@@ -1,0 +1,57 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout Code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Install Node.js and Dependencies
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: npm install
+
+      # 3. Run Tests
+      - name: Run tests
+        run: npm test
+
+      # 4. Build the Application
+      - name: Build application
+        run: npm run build
+
+      # 5. Login to Amazon ECR
+      - name: Login to Amazon ECR
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY }}
+
+      # 6. Build and Push Docker Image
+      - name: Build and push Docker image
+        run: |
+          docker build -t ${{ secrets.DOCKER_IMAGE_NAME }} .
+          docker tag ${{ secrets.DOCKER_IMAGE_NAME }}:latest ${{ secrets.ECR_REPOSITORY }}:latest
+          docker push ${{ secrets.ECR_REPOSITORY }}:latest
+
+      # 7. Deploy to EC2 Instance
+      - name: Deploy to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ${{ secrets.EC2_SSH_KEY }} ubuntu@${{ secrets.EC2_PUBLIC_IP }} << EOF
+            docker pull ${{ secrets.ECR_REPOSITORY }}:latest
+            docker stop angular-app || true
+            docker rm angular-app || true
+            docker run -d --name angular-app -p 80:80 ${{ secrets.ECR_REPOSITORY }}:latest
+          EOF
+
