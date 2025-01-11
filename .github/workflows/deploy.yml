@@ -1,46 +1,48 @@
-name: CI/CD Pipeline
+name: Deploy to EC2 Instance
 
 on:
   push:
     branches:
-      - master
+      - master  # Trigger on the 'master' branch
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
+    # Step 1: Check out the code
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+    # Step 2: Set up AWS credentials for ECR access (if needed for ECR authentication)
+    - name: Set up AWS CLI
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Set up AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+    # Step 3: Set up SSH key for EC2 access
+    - name: Set up SSH key
+      run: |
+        mkdir -p ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v1
+    # Step 4: Run SSH commands to deploy to EC2 instance
+    - name: Run SSH commands on EC2
+      uses: appleboy/ssh-action@v0.1.4
+      with:
+        host: ${{ secrets.EC2_HOST }}  # EC2 instance public IP or private IP if using a VPN
+        username: ${{ secrets.EC2_USERNAME }}  # EC2 username (e.g., `ubuntu` or `ec2-user`)
+        key: ~/.ssh/id_rsa  # Path to the private SSH key
+        port: 22  # Default SSH port
+        script: |
+          # Pull Docker image from ECR
+          docker pull ${{ secrets.ECR_REPOSITORY }}:latest
+          
+          # Run the Docker container
+          docker run -d -p 8080:8000 --name angularjs-app ${{ secrets.ECR_REPOSITORY }}:latest
 
-      - name: Build Docker Image
-        run: |
-          docker build -t angular-app .
-          docker tag angular-app:latest 537124961538.dkr.ecr.us-east-2.amazonaws.com/angular-app:latest
-
-      - name: Push Docker Image to ECR
-        run: |
-          docker push 537124961538.dkr.ecr.us-east-2.amazonaws.com/angular-app:latest
-
-      - name: Deploy to EC2 Instance
-        uses: appleboy/ssh-action@v0.1.4
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          script: |
-            docker pull 537124961538.dkr.ecr.us-east-2.amazonaws.com/angular-app:latest
-            docker run -d -p 8080:8000 --name angularjs-app 537124961538.dkr.ecr.us-east-2.amazonaws.com/angular-app:latest
