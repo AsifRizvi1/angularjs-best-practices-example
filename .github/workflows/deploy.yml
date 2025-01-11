@@ -26,8 +26,8 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
       # Verify SSH key permissions (for debugging)
       - name: Verify SSH key permissions
@@ -48,5 +48,4 @@ jobs:
         env:
           DEBUG: true  # Enable debug logs for more detailed SSH connection output
 
-      # Optionally, you can add more steps to verify or clean up the deployment
 
