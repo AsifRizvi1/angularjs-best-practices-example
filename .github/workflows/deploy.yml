@@ -3,18 +3,18 @@ name: Deploy to EC2 Instance
 on:
   push:
     branches:
-      - master  # Trigger on the 'master' branch
+      - master  # Trigger deployment on the 'master' branch
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
-    # Step 1: Check out the code
+    # Step 1: Checkout the code from the repository
     - name: Checkout code
       uses: actions/checkout@v2
 
-    # Step 2: Set up AWS credentials for ECR access (if needed for ECR authentication)
+    # Step 2: Set up AWS credentials for any AWS-related tasks
     - name: Set up AWS CLI
       uses: aws-actions/configure-aws-credentials@v1
       with:
@@ -22,25 +22,26 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    # Step 3: Set up SSH key for EC2 access
-    - name: Set up SSH key
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa  # Ensure permissions are correct
-        
-        # Echo the private key content (for debugging purposes, remove in production)
-        cat ~/.ssh/id_rsa
-        
+    # Step 3: Debug and set up SSH key for EC2 access
+    - name: Debug SSH private key
+      run: echo "$SSH_PRIVATE_KEY"
       env:
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
-    # Step 4: Run SSH commands on EC2
+    - name: Set up SSH key
+      run: |
+        mkdir -p ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    # Step 4: Run SSH commands on EC2 instance to deploy
     - name: Run SSH commands on EC2
       uses: appleboy/ssh-action@v0.1.4
       with:
         host: ${{ secrets.EC2_HOST }}  # EC2 instance public IP or private IP if using a VPN
-        username: ${{ secrets.EC2_USERNAME }}  # EC2 username (e.g., `ubuntu` or `ec2-user`)
+        username: ${{ secrets.EC2_USERNAME }}  # EC2 username (e.g., `ubuntu`)
         key: ~/.ssh/id_rsa  # Path to the private SSH key
         port: 22  # Default SSH port
         script: |
