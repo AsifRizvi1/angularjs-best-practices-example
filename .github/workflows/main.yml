@@ -1,0 +1,51 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - master  # Adjust to your branch if needed
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out the code from the repository
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Debug SSH private key contents (for troubleshooting)
+      - name: Debug SSH private key
+        run: |
+          echo "Printing SSH Private Key"
+          echo "$SSH_PRIVATE_KEY"  # Ensure this is correctly set in GitHub Secrets
+
+      # Set up SSH key for use in the GitHub Actions workflow
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # Verify SSH key permissions (for debugging)
+      - name: Verify SSH key permissions
+        run: ls -l ~/.ssh/id_rsa
+
+      # Enable SSH debug logging and run commands on EC2
+      - name: Run SSH commands on EC2
+        uses: appleboy/ssh-action@v0.1.4
+        with:
+          host: ${{ secrets.EC2_HOST }}  # EC2 instance public IP or private IP if using a VPN
+          username: ${{ secrets.EC2_USERNAME }}  # EC2 username (e.g., `ubuntu`)
+          key: ~/.ssh/id_rsa  # Path to the private SSH key
+          port: 22  # Default SSH port
+          script: |
+            # Your deployment commands here
+            docker pull ${{ secrets.ECR_REPOSITORY }}:latest
+            docker run -d -p 8080:8000 --name angularjs-app ${{ secrets.ECR_REPOSITORY }}:latest
+        env:
+          DEBUG: true  # Enable debug logs for more detailed SSH connection output
+
+      # Optionally, you can add more steps to verify or clean up the deployment
