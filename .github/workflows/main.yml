@@ -21,13 +21,13 @@ jobs:
           echo "$SSH_PRIVATE_KEY"  # Ensure this is correctly set in GitHub Secrets
 
       # Set up SSH key for use in the GitHub Actions workflow
-      - name: Set up SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" | base64 --decode > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      #- name: Set up SSH key
+       # run: |
+        #  mkdir -p ~/.ssh
+         # echo "$SSH_PRIVATE_KEY" | base64 --decode > ~/.ssh/id_rsa
+          # chmod 600 ~/.ssh/id_rsa
+        #env:
+         # SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
       # Verify SSH key permissions (for debugging)
       - name: Verify SSH key permissions
